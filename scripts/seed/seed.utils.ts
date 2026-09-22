@@ -12,7 +12,7 @@ export const SEED_PASSWORD = 'Seed#2025!'
 export function applySeedFakerSeed(): void {
   const raw = (process.env.SEED_FAKER_SEED ?? '').trim()
   if (!raw) return
-  const n = Number.parseInt(raw, 10)
+  const n = Math.trunc(Number(raw))
   if (!Number.isFinite(n)) return
   faker.seed(n)
   console.log(`🎲 Faker seeded with ${n} for deterministic seed run`)
@@ -22,7 +22,7 @@ export function applySeedFakerSeed(): void {
 export function getSeedQuantity(fallback: number): number {
   const raw = (process.env.SEED_QUANTITY ?? '').trim()
   if (!raw) return fallback
-  const n = Number.parseInt(raw, 10)
+  const n = Math.trunc(Number(raw))
   return Number.isFinite(n) && n > 0 ? n : fallback
 }
 

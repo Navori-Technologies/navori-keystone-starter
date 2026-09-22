@@ -94,11 +94,8 @@ export const lists = {
 
         // this is some customisations for changing how this will look in the AdminUI
         ui: {
-          displayMode: 'cards',
-          cardFields: ['name', 'email'],
-          inlineEdit: { fields: ['name', 'email'] },
-          linkToItem: true,
-          inlineConnect: true,
+          labelField: 'name',
+          searchFields: ['name', 'email'],
         },
 
         // a Post can only have one author
@@ -116,12 +113,7 @@ export const lists = {
 
         // this is some customisations for changing how this will look in the AdminUI
         ui: {
-          displayMode: 'cards',
-          cardFields: ['name'],
-          inlineEdit: { fields: ['name'] },
-          linkToItem: true,
-          inlineConnect: true,
-          inlineCreate: { fields: ['name'] },
+          labelField: 'name',
         },
       }),
     },

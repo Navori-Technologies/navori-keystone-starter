@@ -8,6 +8,8 @@
 import { config as loadEnv } from 'dotenv'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { config } from '@keystone-6/core'
+import type { ApolloServerPlugin } from '@apollo/server'
+import type { KeystoneContext } from '@keystone-6/core/types'
 
 // to keep this file tidy, we define our schema in a different file
 import { lists } from './schema.ts'
@@ -32,6 +34,9 @@ export default withAuth(
       prismaClientOptions: () => ({
         adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
       }),
+      // Keystone's onConnect type requires Promise<void>; the actual awaiting happens
+      // fire-and-forget in the inner IIFE below.
+      // oxlint-disable-next-line require-await
       async onConnect(context) {
         // this creates an initial user if none exist so you can log in for development
         // WARNING: do not use this in production
@@ -47,23 +52,29 @@ export default withAuth(
         })().catch((error) => logger.error('Failed to create initial user', error))
       },
     },
-    apolloConfig: {
-      plugins: [
-        {
-          async requestDidStart(requestContext) {
-            logger.debug('graphql operation', {
-              operationName: requestContext.request.operationName ?? '(unnamed operation)',
-            })
-            return {
-              async didEncounterErrors(errorRequestContext) {
-                for (const error of errorRequestContext.errors) {
-                  logger.error('graphql error', error)
-                }
-              },
-            }
-          },
-        },
-      ],
+    graphql: {
+      apolloConfig: {
+        plugins: [
+          {
+            // Apollo's plugin hooks are typed as async (Promise-returning); these just
+            // log synchronously.
+            // oxlint-disable-next-line require-await
+            async requestDidStart(requestContext) {
+              logger.debug('graphql operation', {
+                operationName: requestContext.request.operationName ?? '(unnamed operation)',
+              })
+              return {
+                // oxlint-disable-next-line require-await -- same as above
+                async didEncounterErrors(errorRequestContext) {
+                  for (const error of errorRequestContext.errors) {
+                    logger.error('graphql error', error)
+                  }
+                },
+              }
+            },
+          } satisfies ApolloServerPlugin<KeystoneContext>,
+        ],
+      },
     },
     server: {
       extendExpressApp,
