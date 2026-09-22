@@ -1,0 +1,6 @@
+[install]
+# pin exact versions on `bun add` instead of caret ranges, for reproducible installs
+exact = true
+# wait 7 days before resolving a newly-published package version — a
+# just-published release is the exact window a supply-chain attack shows up in
+minimumReleaseAge = 604800

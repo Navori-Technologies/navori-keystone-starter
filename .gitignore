@@ -1,0 +1,10 @@
+node_modules
+.keystone/
+generated/
+keystone.db
+*.log
+coverage/
+.env
+.env.*
+!.env.example
+uploads/

@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+# Dockerfile.dev — local development
+#
+# Only installs dependencies; source code arrives via the bind-mount in
+# docker-compose.yml, and Prisma client generation happens on `bun run dev`.
+
+# ── bun binary (musl-compatible) ──────────────────────────────────────────
+FROM oven/bun:1-alpine AS bun-bin
+
+# ── base ──────────────────────────────────────────────────────────────────
+FROM node:24-alpine AS base
+RUN apk add --no-cache openssl libc6-compat
+COPY --from=bun-bin /usr/local/bin/bun /usr/local/bin/bun
+RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
+WORKDIR /app
+
+# ── development ───────────────────────────────────────────────────────────
+FROM base AS development
+
+COPY package.json bun.lock ./
+# --ignore-scripts: the only lifecycle script here is `prepare: husky`, which
+# no-ops with no .git directory anyway (and .dockerignore excludes .husky/).
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --ignore-scripts
+
+EXPOSE 3000
+ENV NODE_ENV=development
+CMD ["bun", "run", "dev"]
