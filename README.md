@@ -1,19 +1,25 @@
-# Keystone Project Starter
+# Navori Keystone Starter
 
-Welcome to Keystone!
+Starter opinionado de [Keystone](https://keystonejs.com) (headless CMS + GraphQL API sobre Prisma) para arrancar proyectos de [Navori Technologies](https://github.com/Navori-Technologies). Trae ya decidido el stack de runtime, base de datos, testing, storage, logging, seguridad y CI — la idea es clonar y empezar a modelar tu `schema.ts`, no reconstruir la infraestructura cada vez.
 
-## Requisitos
+## Stack
 
-- Node.js >= 24 (ver [.node-version](./.node-version))
-- [Bun](https://bun.sh) >= 1.4 como package manager
-- [Docker](https://www.docker.com) (o un Postgres local propio) — este starter usa PostgreSQL, no SQLite
-- TypeScript 7 (instalado como dependencia del proyecto)
-- [oxlint](https://oxc.rs/docs/guide/usage/linter.html) para linting y [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html) para formateo (`bun run lint`, `bun run format`, `bun run format:check`)
-- [Vitest](https://vitest.dev) + [Supertest](https://github.com/ladjs/supertest) para testing (`bun run test`, `bun run test:watch`, `bun run test:coverage`)
-- [Winston](https://github.com/winstonjs/winston) para logging estructurado (`./logger.ts`)
-- [Husky](https://typicode.github.io/husky) para el pre-commit hook (se activa solo si el proyecto es un repo git — `bun install` corre `prepare: husky`)
+| Pieza               | Elección                                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Runtime             | Node.js >= 24                                                                                                   |
+| Package manager     | [Bun](https://bun.sh) >= 1.4                                                                                    |
+| Lenguaje            | TypeScript 7                                                                                                    |
+| Base de datos       | PostgreSQL (`@prisma/adapter-pg`)                                                                               |
+| Lint / format       | [oxlint](https://oxc.rs/docs/guide/usage/linter.html) / [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html) |
+| Testing             | [Vitest](https://vitest.dev) + [Supertest](https://github.com/ladjs/supertest)                                  |
+| Storage de archivos | Local en dev, S3-compatible en prod (AWS S3 / Cloudflare R2 / MinIO)                                            |
+| Logging             | [Winston](https://github.com/winstonjs/winston)                                                                 |
+| Seguridad           | [Helmet](https://helmetjs.github.io) + rate limiting                                                            |
+| Git hooks           | [Husky](https://typicode.github.io/husky) (pre-commit informativo)                                              |
+| CI                  | GitHub Actions — semgrep, jscpd, lint, format, typecheck                                                        |
+| Contenedores        | `Dockerfile` (producción) + `Dockerfile.dev` + `docker-compose.yml`                                             |
 
-Copy the env file, start Postgres, install dependencies and start Keystone:
+## Quickstart
 
 ```
 cp .env.example .env
@@ -22,84 +28,74 @@ bun install
 bun run dev
 ```
 
-To view the config for your new app, look at [./keystone.ts](./keystone.ts)
+Esto levanta Postgres local, instala dependencias y arranca Keystone en [http://localhost:3000](http://localhost:3000) — te crea un usuario admin de desarrollo (revisa el log por el password generado).
 
-This project starter is designed to give you a sense of the power Keystone can offer you, and show off some of its main features. It's also a pretty simple setup if you want to build out from it.
+El punto de entrada de la config es [`./keystone.ts`](./keystone.ts); las listas del modelo de datos viven en [`./schema.ts`](./schema.ts).
 
-We recommend you use this alongside our [getting started guide](https://keystonejs.com/docs/getting-started), which will walk you through what you get as part of this starter.
-
-If you want an overview of all the features Keystone offers, check out our [features](https://keystonejs.com/why-keystone#features) page.
-
-## Some Quick Notes On Getting Started
+## Guía por pieza
 
 ### Database
 
-This starter uses [PostgreSQL](https://keystonejs.com/docs/config/config#postgresql) via `@prisma/adapter-pg`, configured in [./keystone.ts](./keystone.ts) and [./prisma.config.ts](./prisma.config.ts). Both read `DATABASE_URL` from the environment (loaded from `.env` via `dotenv` — copy `.env.example` to get started).
+Usa [PostgreSQL](https://keystonejs.com/docs/config/config#postgresql) vía `@prisma/adapter-pg`, configurado en [`./keystone.ts`](./keystone.ts) y [`./prisma.config.ts`](./prisma.config.ts). Ambos leen `DATABASE_URL` desde el entorno (cargado desde `.env` vía `dotenv`).
 
-`docker-compose.yml` runs a local Postgres for development (`docker compose up -d db`). Dev startup pushes the schema straight to the database (`db push`, not `prisma migrate`) for speed — once you need real migrations, switch to `prisma migrate dev` locally and `prisma migrate deploy` as a release step (see the note in [./Dockerfile](./Dockerfile)).
+`docker-compose.yml` levanta un Postgres local (`docker compose up -d db`). El arranque en dev empuja el schema directo a la base (`db push`, no `prisma migrate`) para velocidad — cuando necesites migraciones reales, cambia a `prisma migrate dev` localmente y `prisma migrate deploy` como paso de release (ver la nota en [`./Dockerfile`](./Dockerfile)).
 
-For more on database configuration, see the [database configuration docs](https://keystonejs.com/docs/config/config#db).
+Más sobre configuración de base de datos en la [documentación de Keystone](https://keystonejs.com/docs/config/config#db).
 
 ### Docker
 
-- **`Dockerfile.dev`** — local development image: installs dependencies only, source code arrives via the bind-mount in `docker-compose.yml`, runs `bun run dev`.
-- **`Dockerfile`** — production image: multi-stage build (`deps` → `builder` runs `prisma generate` + `keystone build` → `production`). The final image only ships `node_modules`, the built `.keystone/` bundle and `generated/` (Prisma client + Keystone types) — `keystone start` reads the bundle, not the raw `.ts` source, so nothing else is needed. Exposes a `/healthz` route (see [./server.ts](./server.ts)) as the `HEALTHCHECK`.
-- **`docker-compose.yml`** — `app` (built from `Dockerfile.dev`) + `db` (`postgres:18-alpine`) for local development.
+- **`Dockerfile.dev`** — imagen de desarrollo local: solo instala dependencias, el código llega por bind-mount desde `docker-compose.yml`, corre `bun run dev`.
+- **`Dockerfile`** — imagen de producción: build multi-stage (`deps` → `builder` corre `keystone build` → `production`). La imagen final solo lleva `node_modules`, el bundle `.keystone/` y `generated/` (cliente Prisma + tipos de Keystone) — `keystone start` lee el bundle, no el `.ts` fuente, así que no hace falta nada más. Expone `/healthz` (ver [`./server.ts`](./server.ts)) como `HEALTHCHECK`.
+- **`docker-compose.yml`** — `app` (construido desde `Dockerfile.dev`) + `db` (`postgres:18-alpine`) para desarrollo local.
 
-Migrations do **not** run inside the production image's `CMD` — run `bunx prisma migrate deploy` as a separate release step in your deploy pipeline, once per deploy, to avoid concurrent deploys/restarts racing for the same migration lock.
+Las migraciones NO corren dentro del `CMD` de la imagen de producción — corre `bunx prisma migrate deploy` como paso de release separado en tu pipeline de deploy, una vez por deploy, para evitar que deploys/reinicios concurrentes compitan por el lock de migración.
 
-### File & image storage
+### Storage de archivos e imágenes
 
-Image/file fields need a [`StorageStrategy`](https://keystonejs.com/docs/config/config#storage-images-and-files) — Keystone 8 dropped the old `storage: { kind: 's3' }` shortcut. [./storage.ts](./storage.ts) provides `createStorageStrategy(kind)`, picked by `STORAGE_DRIVER`:
+Los campos `image`/`file` necesitan una [`StorageStrategy`](https://keystonejs.com/docs/config/config#storage-images-and-files) — Keystone 8 quitó el atajo viejo `storage: { kind: 's3' }`. [`./storage.ts`](./storage.ts) provee `createStorageStrategy(kind)`, elegido por `STORAGE_DRIVER`:
 
-- **`local`** (default) — writes to `./uploads/<kind>/<key>`, served by `server.ts`'s static middleware at `/uploads`. Nothing to provision; good for local dev.
-- **`s3`** — any S3-compatible object store, via the AWS SDK. Works for AWS S3 as-is; for **Cloudflare R2** (or MinIO), set `S3_ENDPOINT` to the compatible endpoint (`https://<account_id>.r2.cloudflarestorage.com` for R2) and `S3_REGION=auto` — same code path, no separate SDK.
+- **`local`** (default) — escribe en `./uploads/<kind>/<key>`, servido por el middleware estático de `server.ts` en `/uploads`. Nada que provisionar; bueno para dev local.
+- **`s3`** — cualquier object store S3-compatible, vía el SDK de AWS. Funciona con AWS S3 tal cual; para **Cloudflare R2** (o MinIO), configura `S3_ENDPOINT` al endpoint compatible (`https://<account_id>.r2.cloudflarestorage.com` para R2) y `S3_REGION=auto` — mismo código, sin SDK aparte.
 
-See `.env.example` for the full list of `S3_*` variables. `schema.ts`'s `User.avatar` field demonstrates wiring a field to it.
+Ver `.env.example` para la lista completa de variables `S3_*`. El campo `User.avatar` en `schema.ts` demuestra cómo conectar un campo.
 
 ### Logging
 
-[`./logger.ts`](./logger.ts) exports a Winston `logger` — JSON to stdout in production (for your container orchestrator/log aggregator to pick up), colorized human-readable lines in development. Both redact common sensitive field names (`password`, `token`, `secret`, …) from logged metadata. `LOG_LEVEL` controls verbosity (default `info`). `keystone.ts` already routes its GraphQL request/error logging through it — use the same `logger` anywhere else in your app code instead of `console.log`.
+[`./logger.ts`](./logger.ts) exporta un `logger` de Winston — JSON a stdout en producción (para que tu orquestador de contenedores/agregador de logs lo capture), líneas coloreadas legibles en desarrollo. Ambos redactan nombres de campos sensibles comunes (`password`, `token`, `secret`, …) de la metadata logueada. `LOG_LEVEL` controla la verbosidad (default `info`). `keystone.ts` ya enruta su logging de requests/errores de GraphQL a través de él — usa el mismo `logger` en el resto de tu código en vez de `console.log`.
 
 ### Data seed
 
-`bun run db:seed` populates the database with demo data — see [./scripts/seed](./scripts/seed). Idempotent: each list's seed function checks for existing rows and skips itself, so running it twice (or against a database that already has data) is safe. `SEED_QUANTITY` controls how many rows per list; `SEED_FAKER_SEED` makes the output deterministic (set it in CI to reproduce a data-shape failure).
+`bun run db:seed` puebla la base con datos de demo — ver [`./scripts/seed`](./scripts/seed). Idempotente: cada función de seed por lista revisa si ya hay filas y se salta, así que correrlo dos veces (o contra una base que ya tiene datos) es seguro. `SEED_QUANTITY` controla cuántas filas por lista; `SEED_FAKER_SEED` hace el output determinístico (útil en CI para reproducir un fallo de forma de datos).
 
-### Security
+### Seguridad
 
-[`server.ts`](./server.ts) wires three baseline protections into Keystone's Express server before GraphQL/Admin UI are mounted, so they cover everything, GraphQL included:
+[`server.ts`](./server.ts) engancha tres protecciones base en el servidor Express de Keystone antes de que se monte GraphQL/Admin UI, así que cubren todo, GraphQL incluido:
 
-- **[Helmet](https://helmetjs.github.io)** — standard security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, etc). `contentSecurityPolicy` is left off: the Admin UI is a Next.js app with inline scripts Keystone controls, not this file, and a default CSP would break it — enable one scoped to your own routes once you have some to protect.
-- **Rate limiting on `/api/graphql`** — [`express-rate-limit`](https://github.com/express-rate-limit/express-rate-limit) with `RATE_LIMIT_WINDOW_MS`/`RATE_LIMIT_MAX` (defaults: 300 requests / 15 min). Uses the in-memory store by default, which means the limit is **per process** — fine for one instance, but with more than one behind a load balancer the real limit becomes `instances × RATE_LIMIT_MAX` without anyone being told. Point it at a shared store (e.g. [`rate-limit-redis`](https://github.com/express-rate-limit/rate-limit-redis)) once you run more than one.
-- **JSON body size limit** — `express.json({ limit: MAX_JSON_SIZE, strict: true })`, default `1mb`. Guards against large-payload DoS; GraphQL file uploads go through multipart instead, so this doesn't affect them.
+- **[Helmet](https://helmetjs.github.io)** — headers de seguridad estándar (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, etc). `contentSecurityPolicy` queda desactivado: la Admin UI es una app Next.js con scripts inline que Keystone controla, no este archivo, y un CSP por default la rompería — habilita uno scopeado a tus propias rutas cuando tengas algo que proteger.
+- **Rate limiting en `/api/graphql`** — [`express-rate-limit`](https://github.com/express-rate-limit/express-rate-limit) con `RATE_LIMIT_WINDOW_MS`/`RATE_LIMIT_MAX` (default: 300 requests / 15 min). Usa el store en memoria por default, lo que significa que el límite es **por proceso** — bien para una sola instancia, pero con más de una detrás de un load balancer el límite real se vuelve `instancias × RATE_LIMIT_MAX` sin que nadie se entere. Apunta a un store compartido (ej. [`rate-limit-redis`](https://github.com/express-rate-limit/rate-limit-redis)) cuando corras más de una.
+- **Límite de tamaño de body JSON** — `express.json({ limit: MAX_JSON_SIZE, strict: true })`, default `1mb`. Protege contra DoS de payload grande; los uploads de archivos de GraphQL van por multipart, así que esto no los afecta.
 
 ### Pre-commit hook & CI
 
-[`.husky/pre-commit`](./.husky/pre-commit) runs `tsc --noEmit` (full project) plus `oxlint`/`oxfmt --check` scoped to staged files — and is **informational, it never blocks the commit**. Scoping lint/format to staged files avoids dumping every pre-existing warning on every commit; `tsc` can't be scoped that way (it checks the whole project or nothing) and runs in full on purpose, since a change in one file can break another file's types. The trade-off: this alone doesn't stop you from committing code that doesn't compile — [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) is the actual hard gate, running on every push/PR to `main` (plus `workflow_dispatch` for a manual run on any branch), with two jobs:
+[`.husky/pre-commit`](./.husky/pre-commit) corre `tsc --noEmit` (proyecto completo) más `oxlint`/`oxfmt --check` acotado a archivos en stage — y es **informativo, nunca bloquea el commit**. Acotar lint/format a archivos en stage evita volcar cada warning preexistente en cada commit; `tsc` no se puede acotar así (revisa todo el proyecto o nada) y corre completo a propósito, ya que un cambio en un archivo puede romper el tipado de otro. El trade-off: esto solo no impide commitear código que no compila — [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) es el gate real, corre en cada push/PR a `main` (más `workflow_dispatch` para correrlo a mano en cualquier branch), con dos jobs:
 
-- **`static-analysis`** — [semgrep](https://semgrep.dev) (the `p/default` ruleset, scoped to findings NEW vs. the base commit — a full-repo scan would fail on whatever pre-existing debt is already there) and [jscpd](https://github.com/kucherenko/jscpd) (code duplication, ≥100 tokens / ≥10 lines counts as a clone, fails above 5% duplicated).
+- **`static-analysis`** — [semgrep](https://semgrep.dev) (ruleset `p/default`, acotado a hallazgos NUEVOS vs. el commit base — un scan completo del repo fallaría por deuda preexistente) y [jscpd](https://github.com/kucherenko/jscpd) (duplicación de código, ≥100 tokens / ≥10 líneas cuenta como clon, falla arriba de 5% duplicado).
 - **`quality`** — lint, format check, typecheck.
 
-No test run, no Docker build, on purpose for now — add `bun run test` (see the Testing section) and a Docker smoke job back in once you want CI to cover those too.
+Sin correr tests ni build de Docker, a propósito por ahora — agrega `bun run test` (ver la sección de Testing) y un job de smoke test de Docker cuando quieras que el CI cubra eso también.
 
 ### Auth
 
-We've put auth into its own file to make this humble starter easier to navigate. To explore it without auth turned on, comment out the `isAccessAllowed` on line 21 of the Keystone file [./keystone.ts](./keystone.ts).
+La autenticación vive en su propio archivo ([`./auth.ts`](./auth.ts)) para mantener `keystone.ts` legible. Para explorar sin auth activado, comenta el `isAccessAllowed` en `keystone.ts`.
 
-For more on auth, check out our [Authentication API Docs](https://keystonejs.com/docs/apis/auth#authentication-api)
+Más en la [documentación de Authentication API](https://keystonejs.com/docs/apis/auth#authentication-api).
 
-### Adding a frontend
+### Agregar un frontend
 
-As a Headless CMS, Keystone can be used with any frontend that uses GraphQL. It provides a GraphQL endpoint you can write queries against at `/api/graphql` (by default [http://localhost:3000/api/graphql](http://localhost:3000/api/graphql)). At Thinkmill, we tend to use [Next.js](https://nextjs.org/) and [Apollo GraphQL](https://www.apollographql.com/docs/react/get-started/) as our frontend and way to write queries, but if you have your own favourite, feel free to use it.
-
-A walkthrough on how to do this is forthcoming, but in the meantime our [todo example](https://github.com/keystonejs/keystone-react-todo-demo) shows a Keystone set up with a frontend. For a more full example, you can also look at an example app we built for [Prisma Day 2021](https://github.com/keystonejs/prisma-day-2021-workshop)
+Como CMS headless, Keystone puede usarse con cualquier frontend que hable GraphQL. Expone un endpoint GraphQL en `/api/graphql` (por default [http://localhost:3000/api/graphql](http://localhost:3000/api/graphql)).
 
 ### Testing
 
-Tests live in [./tests](./tests) and run against a real Keystone context (via `getContext`), not mocks — see [./tests/helpers/keystone-context.ts](./tests/helpers/keystone-context.ts). Requires Postgres running (`docker compose up -d db`). Since this starter uses `db push` (not `prisma migrate`) for the fastest dev startup, `bun run test` pushes the schema itself before running (see [./tests/helpers/global-setup.ts](./tests/helpers/global-setup.ts)) — no extra setup step needed, but each test is responsible for cleaning up the rows it creates.
+Los tests viven en [`./tests`](./tests) y corren contra un contexto real de Keystone (vía `getContext`), no mocks — ver [`./tests/helpers/keystone-context.ts`](./tests/helpers/keystone-context.ts). Requiere Postgres corriendo (`docker compose up -d db`). Como este starter usa `db push` (no `prisma migrate`) para el arranque más rápido en dev, `bun run test` empuja el schema él mismo antes de correr (ver [`./tests/helpers/global-setup.ts`](./tests/helpers/global-setup.ts)) — sin paso extra de setup, pero cada test es responsable de limpiar las filas que crea.
 
-`tests/integration/server.test.ts` shows the same idea for custom Express routes: it mounts `extendExpressApp` on a bare `express()` instance and hits it with Supertest, instead of booting the full Keystone HTTP server.
-
-### Embedding Keystone in a Next.js frontend
-
-While Keystone works as a standalone app, you can embed your Keystone app into a [Next.js](https://nextjs.org/) app. This is quite a different setup to the starter, and we recommend checking out our walkthrough for that [here](https://keystonejs.com/docs/walkthroughs/embedded-mode-with-sqlite-nextjs#how-to-embed-keystone-sq-lite-in-a-next-js-app).
+`tests/integration/server.test.ts` muestra la misma idea para rutas custom de Express: monta `extendExpressApp` en una instancia `express()` desnuda y le pega con Supertest, en vez de levantar el servidor HTTP completo de Keystone.
