@@ -67,6 +67,8 @@ Ver `.env.example` para la lista completa de variables `S3_*`. El campo `User.av
 
 `bun run db:seed` puebla la base con datos de demo — ver [`./scripts/seed`](./scripts/seed). Idempotente: cada función de seed por lista revisa si ya hay filas y se salta, así que correrlo dos veces (o contra una base que ya tiene datos) es seguro. `SEED_QUANTITY` controla cuántas filas por lista; `SEED_FAKER_SEED` hace el output determinístico (útil en CI para reproducir un fallo de forma de datos).
 
+Para empezar de cero: `bun run db:nuke` borra toda la base y la recrea vacía desde `schema.prisma` (`prisma db push --force-reset`, ver [`./scripts/nuke-db.ts`](./scripts/nuke-db.ts)); `bun run db:nuke:seed` además la vuelve a poblar. **Solo para desarrollo local**: se niega a correr si el host de `DATABASE_URL` no es `localhost`, `127.0.0.1`, `[::1]` o `db` (el servicio de docker-compose). Con el stack en Docker, córrelo dentro del contenedor: `docker compose exec app bun run db:nuke:seed`. El admin inicial lo crea la app al arrancar, así que reinicia el contenedor (`docker compose restart app`) si lo necesitas después del nuke.
+
 ### Seguridad
 
 [`server.ts`](./server.ts) engancha tres protecciones base en el servidor Express de Keystone antes de que se monte GraphQL/Admin UI, así que cubren todo, GraphQL incluido:
