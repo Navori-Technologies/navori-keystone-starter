@@ -25,6 +25,13 @@ import { logger } from './logger.ts'
 
 loadEnv()
 
+// Browser origins allowed to call the GraphQL API with the session cookie
+// (e.g. the Navori dashboard). Unset = no CORS headers, same-origin only.
+const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
 export default withAuth(
   config({
     db: {
@@ -77,6 +84,7 @@ export default withAuth(
       },
     },
     server: {
+      cors: CORS_ORIGINS.length > 0 ? { origin: CORS_ORIGINS, credentials: true } : undefined,
       extendExpressApp,
     },
     lists,
