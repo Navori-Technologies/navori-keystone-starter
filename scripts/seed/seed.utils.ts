@@ -4,6 +4,11 @@ import { faker } from '@faker-js/faker'
 // password field just needs a non-empty string here, no complexity rule).
 export const SEED_PASSWORD = 'Seed#2025!'
 
+// Every seeded user gets this email domain, which is how createUsers tells its
+// own rows apart from the initial admin that keystone.ts's onConnect creates on
+// startup. `.test` is reserved (RFC 2606), so it can't collide with a real one.
+export const SEED_EMAIL_DOMAIN = 'seed.test'
+
 /**
  * Reads `SEED_FAKER_SEED` and seeds Faker for deterministic runs. No-op when
  * unset, so the default is a fresh random dataset every run. Set it in CI to
