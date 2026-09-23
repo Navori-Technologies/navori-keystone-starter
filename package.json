@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
-    "db:seed": "bun run scripts/seed/index.ts"
+    "db:seed": "bun run scripts/seed/index.ts",
+    "db:nuke": "bun run scripts/nuke-db.ts",
+    "db:nuke:seed": "bun run db:nuke && bun run db:seed"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1137.0",
